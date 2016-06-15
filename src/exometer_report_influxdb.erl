@@ -292,7 +292,9 @@ send(Packet, #state{protocol = http, connection= Connection,
              end,
     Url = hackney_url:make_url(<<"/">>, <<"write">>, QsVals),
     Req = {post, Url, [], Packet},
-    case hackney:send_request(Connection, Req) of
+    {Time, Value} =  timer:tc(fun() -> hackney:send_request(Connection, Req) end),
+    lager:info("influxdb hackney send ~p: ~p mcs", [Url, Time]),
+    case Value of
         {ok, 204, _, Ref} ->
             hackney:body(Ref),
             {ok, State};
@@ -307,7 +309,9 @@ send(Packet, #state{protocol = http, connection= Connection,
     end;
 send(Packet, #state{protocol = udp, connection = Socket,
                     host = Host, port = Port} = State) ->
-    case gen_udp:send(Socket, Host, Port, Packet) of
+    {Time, Value} =  timer:tc(fun() -> gen_udp:send(Socket, Host, Port, Packet) end),
+    lager:info("influxdb udp send: ~p mcs", [Time]),
+    case Value of
         ok -> {ok, State};
         Error ->
             ?error("InfluxDB reporter UDP sending error: ~p", [Error]),
